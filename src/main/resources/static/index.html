@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMIT Robot Controller</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🤖 RMIT Mecanum Robot Controller</h1>
+        <div class="status-bar">
+            <span id="connection-status" class="status disconnected">Disconnected</span>
+            <span id="speed-display">Speed: 1.0x</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Control Panel -->
+        <section class="control-panel">
+            <h2>Robot Control</h2>
+
+            <!-- Movement Controls -->
+            <div class="movement-controls">
+                <div class="control-row">
+                    <button class="control-btn diagonal" data-action="q">Q<br><small>↖</small></button>
+                    <button class="control-btn" data-action="w">W<br><small>↑</small></button>
+                    <button class="control-btn diagonal" data-action="e">E<br><small>↗</small></button>
+                </div>
+                <div class="control-row">
+                    <button class="control-btn" data-action="a">A<br><small>←</small></button>
+                    <button class="control-btn stop-btn" id="stop-btn">STOP</button>
+                    <button class="control-btn" data-action="d">D<br><small>→</small></button>
+                </div>
+                <div class="control-row">
+                    <button class="control-btn diagonal" data-action="z">Z<br><small>↙</small></button>
+                    <button class="control-btn" data-action="s">S<br><small>↓</small></button>
+                    <button class="control-btn diagonal" data-action="c">C<br><small>↘</small></button>
+                </div>
+            </div>
+
+            <!-- Rotation Controls -->
+            <div class="rotation-controls">
+                <button class="control-btn rotate" data-action="left">⟲ Rotate Left</button>
+                <button class="control-btn rotate" data-action="right">Rotate Right ⟳</button>
+            </div>
+
+            <!-- Speed Controls -->
+            <div class="speed-controls">
+                <h3>Speed Control</h3>
+                <div class="speed-buttons">
+                    <button id="speed-decrease" class="speed-btn">−</button>
+                    <input type="range" id="speed-slider" min="0.2" max="3.0" step="0.2" value="1.0">
+                    <button id="speed-increase" class="speed-btn">+</button>
+                </div>
+                <div class="speed-value" id="speed-value">1.0x</div>
+            </div>
+        </section>
+
+        <!-- Information Panel -->
+        <section class="info-panel">
+            <!-- Camera Feed -->
+            <div class="camera-feed">
+                <h2>Camera Feed</h2>
+                <div class="video-container">
+                    <img id="camera-stream" src="" alt="Camera stream will appear here">
+                    <div class="camera-status">
+                        <span id="camera-status-text">Camera: Disconnected</span>
+                    </div>
+                </div>
+                <div class="camera-controls">
+                    <button id="start-camera" class="camera-btn">Start Camera</button>
+                    <button id="stop-camera" class="camera-btn">Stop Camera</button>
+                    <select id="camera-quality">
+                        <option value="320x240">Low (320x240)</option>
+                        <option value="640x480" selected>Medium (640x480)</option>
+                        <option value="1280x720">High (1280x720)</option>
+                    </select>
+                </div>
+            </div>
+
+            <h2>System Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Current Action:</label>
+                    <span id="current-action">None</span>
+                </div>
+                <div class="info-item">
+                    <label>Linear X:</label>
+                    <span id="linear-x">0.00</span>
+                </div>
+                <div class="info-item">
+                    <label>Linear Y:</label>
+                    <span id="linear-y">0.00</span>
+                </div>
+                <div class="info-item">
+                    <label>Angular Z:</label>
+                    <span id="angular-z">0.00</span>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="instructions">
+                <h3>Keyboard Controls</h3>
+                <ul>
+                    <li><strong>W/A/S/D:</strong> Basic movement (Forward/Left/Back/Right)</li>
+                    <li><strong>Q/E/Z/C:</strong> Diagonal movement</li>
+                    <li><strong>Arrow Keys (←/→):</strong> Rotate left/right</li>
+                    <li><strong>Arrow Keys (↑/↓):</strong> Increase/decrease speed</li>
+                    <li><strong>Space:</strong> Emergency stop</li>
+                </ul>
+            </div>
+
+            <!-- Log Panel -->
+            <div class="log-panel">
+                <h3>Command Log</h3>
+                <div id="log-messages"></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="js/robot-control.js"></script>
+</body>
+</html>

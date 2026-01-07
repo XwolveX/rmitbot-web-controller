@@ -1,0 +1,187 @@
+package com.rmitbot.webcontroller.websocket;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.rmitbot.webcontroller.model.RobotCommand;
+import com.rmitbot.webcontroller.service.ROS2CommandService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * WebSocket handler for robot control
+ * Handles incoming commands from web clients
+ */
+@Component
+public class RobotWebSocketHandler extends TextWebSocketHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(RobotWebSocketHandler.class);
+    private final Gson gson = new Gson();
+
+    private final ROS2CommandService ros2CommandService;
+    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private double currentSpeedMultiplier = 1.0;
+
+    public RobotWebSocketHandler(ROS2CommandService ros2CommandService) {
+        this.ros2CommandService = ros2CommandService;
+    }
+
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        sessions.put(session.getId(), session);
+        logger.info("WebSocket connection established: {}", session.getId());
+
+        // Send welcome message
+        JsonObject welcome = new JsonObject();
+        welcome.addProperty("type", "connected");
+        welcome.addProperty("message", "Connected to robot controller");
+        welcome.addProperty("speedMultiplier", currentSpeedMultiplier);
+        session.sendMessage(new TextMessage(gson.toJson(welcome)));
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        String payload = message.getPayload();
+        logger.debug("Received message: {}", payload);
+
+        try {
+            JsonObject json = gson.fromJson(payload, JsonObject.class);
+            String type = json.get("type").getAsString();
+
+            switch (type) {
+                case "command":
+                    handleCommandMessage(session, json);
+                    break;
+                case "speed":
+                    handleSpeedMessage(session, json);
+                    break;
+                case "stop":
+                    handleStopMessage(session);
+                    break;
+                case "ping":
+                    handlePingMessage(session);
+                    break;
+                default:
+                    logger.warn("Unknown message type: {}", type);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error processing message", e);
+            sendError(session, "Error processing command: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Handle movement command
+     */
+    private void handleCommandMessage(WebSocketSession session, JsonObject json) throws IOException {
+        String action = json.get("action").getAsString();
+
+        // Create and send command
+        RobotCommand command = RobotCommand.fromAction(action, currentSpeedMultiplier);
+        ros2CommandService.sendCommand(command);
+
+        // Send acknowledgment
+        JsonObject response = new JsonObject();
+        response.addProperty("type", "command_ack");
+        response.addProperty("action", action);
+        response.addProperty("linearX", command.getLinearX());
+        response.addProperty("linearY", command.getLinearY());
+        response.addProperty("angularZ", command.getAngularZ());
+        session.sendMessage(new TextMessage(gson.toJson(response)));
+    }
+
+    /**
+     * Handle speed change
+     */
+    private void handleSpeedMessage(WebSocketSession session, JsonObject json) throws IOException {
+        String action = json.get("action").getAsString();
+        double speedStep = 0.2;
+        double maxSpeed = 3.0;
+        double minSpeed = 0.2;
+
+        if ("increase".equals(action)) {
+            currentSpeedMultiplier = Math.min(currentSpeedMultiplier + speedStep, maxSpeed);
+        } else if ("decrease".equals(action)) {
+            currentSpeedMultiplier = Math.max(currentSpeedMultiplier - speedStep, minSpeed);
+        } else if (json.has("value")) {
+            currentSpeedMultiplier = json.get("value").getAsDouble();
+            currentSpeedMultiplier = Math.max(minSpeed, Math.min(maxSpeed, currentSpeedMultiplier));
+        }
+
+        // Broadcast speed change to all sessions
+        JsonObject response = new JsonObject();
+        response.addProperty("type", "speed_update");
+        response.addProperty("speedMultiplier", currentSpeedMultiplier);
+        broadcastMessage(gson.toJson(response));
+    }
+
+    /**
+     * Handle stop command
+     */
+    private void handleStopMessage(WebSocketSession session) throws IOException {
+        ros2CommandService.sendStopCommand();
+
+        JsonObject response = new JsonObject();
+        response.addProperty("type", "stopped");
+        session.sendMessage(new TextMessage(gson.toJson(response)));
+    }
+
+    /**
+     * Handle ping (keepalive)
+     */
+    private void handlePingMessage(WebSocketSession session) throws IOException {
+        JsonObject response = new JsonObject();
+        response.addProperty("type", "pong");
+        session.sendMessage(new TextMessage(gson.toJson(response)));
+    }
+
+    /**
+     * Send error message
+     */
+    private void sendError(WebSocketSession session, String errorMessage) {
+        try {
+            JsonObject error = new JsonObject();
+            error.addProperty("type", "error");
+            error.addProperty("message", errorMessage);
+            session.sendMessage(new TextMessage(gson.toJson(error)));
+        } catch (IOException e) {
+            logger.error("Error sending error message", e);
+        }
+    }
+
+    /**
+     * Broadcast message to all connected sessions
+     */
+    private void broadcastMessage(String message) {
+        sessions.values().forEach(session -> {
+            try {
+                if (session.isOpen()) {
+                    session.sendMessage(new TextMessage(message));
+                }
+            } catch (IOException e) {
+                logger.error("Error broadcasting message to session: {}", session.getId(), e);
+            }
+        });
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+        sessions.remove(session.getId());
+        logger.info("WebSocket connection closed: {} - Status: {}", session.getId(), status);
+    }
+
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+        logger.error("WebSocket transport error for session: {}", session.getId(), exception);
+        sessions.remove(session.getId());
+    }
+}
