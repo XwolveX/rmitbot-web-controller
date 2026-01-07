@@ -1,7 +1,7 @@
 package com.rmitbot.webcontroller.controller;
 
 import com.rmitbot.webcontroller.model.RobotCommand;
-import com.rmitbot.webcontroller.service.ROS2CommandService;
+import com.rmitbot.webcontroller.service.ROSBridgeService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,27 +10,39 @@ import java.util.Map;
 
 /**
  * REST API controller for robot control
- * Provides HTTP endpoints as alternative to WebSocket
+ * UPDATED: Now uses ROSBridgeService instead of ROS2CommandService
  */
 @RestController
 @RequestMapping("/api/robot")
 @CrossOrigin(origins = "*")
 public class RobotController {
 
-    private final ROS2CommandService ros2CommandService;
+    private final ROSBridgeService rosBridgeService;
 
-    public RobotController(ROS2CommandService ros2CommandService) {
-        this.ros2CommandService = ros2CommandService;
+    public RobotController(ROSBridgeService rosBridgeService) {
+        this.rosBridgeService = rosBridgeService;
     }
 
     /**
      * Health check endpoint
      */
     @GetMapping("/health")
-    public ResponseEntity<Map<String, String>> health() {
-        Map<String, String> response = new HashMap<>();
+    public ResponseEntity<Map<String, Object>> health() {
+        Map<String, Object> response = new HashMap<>();
         response.put("status", "ok");
         response.put("message", "Robot controller is running");
+        response.put("rosbridge", rosBridgeService.getConnectionStatus());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get ROSBridge connection status
+     */
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> getStatus() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("rosbridge", rosBridgeService.getConnectionStatus());
+        response.put("timestamp", System.currentTimeMillis());
         return ResponseEntity.ok(response);
     }
 
@@ -45,11 +57,13 @@ public class RobotController {
                 : 1.0;
 
         RobotCommand command = RobotCommand.fromAction(action, speedMultiplier);
-        ros2CommandService.sendCommand(command);
+        rosBridgeService.sendCommand(command);
 
         Map<String, Object> response = new HashMap<>();
         response.put("status", "success");
         response.put("command", command);
+        response.put("rosBridgeConnected", rosBridgeService.isConnected());
+        response.put("timestamp", System.currentTimeMillis());
         return ResponseEntity.ok(response);
     }
 
@@ -57,12 +71,13 @@ public class RobotController {
      * Send stop command
      */
     @PostMapping("/stop")
-    public ResponseEntity<Map<String, String>> stop() {
-        ros2CommandService.sendStopCommand();
+    public ResponseEntity<Map<String, Object>> stop() {
+        rosBridgeService.sendStopCommand();
 
-        Map<String, String> response = new HashMap<>();
+        Map<String, Object> response = new HashMap<>();
         response.put("status", "success");
         response.put("message", "Robot stopped");
+        response.put("timestamp", System.currentTimeMillis());
         return ResponseEntity.ok(response);
     }
 

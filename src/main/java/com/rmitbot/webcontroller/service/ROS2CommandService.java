@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Service to send commands to ROS2 system
  * Uses ros2 topic pub command to publish velocity commands
+ * FIXED VERSION - Better timeout and synchronization
  */
 @Service
 public class ROS2CommandService {
@@ -34,6 +35,7 @@ public class ROS2CommandService {
 
     /**
      * Send velocity command to robot via ROS2
+     * FIXED: Now properly waits for command completion with adequate timeout
      */
     public void sendCommand(RobotCommand command) {
         if (!ros2Enabled) {
@@ -41,7 +43,7 @@ public class ROS2CommandService {
             return;
         }
 
-        // Execute in background thread to avoid blocking
+        // Execute in background thread to avoid blocking WebSocket
         CompletableFuture.runAsync(() -> {
             try {
                 // Build ROS2 command
@@ -53,18 +55,37 @@ public class ROS2CommandService {
                 processBuilder.redirectErrorStream(true);
                 Process process = processBuilder.start();
 
-                // Don't wait for completion, let it run in background
-                // This makes the response much faster
+                // Read output for debugging (optional)
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        logger.trace("ROS2 output: {}", line);
+                    }
+                }
 
-            } catch (IOException e) {
+                // Wait for completion with adequate timeout
+                boolean finished = process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS);
+                if (!finished) {
+                    process.destroyForcibly();
+                    logger.warn("ROS2 command timed out after 3 seconds");
+                } else {
+                    int exitCode = process.exitValue();
+                    if (exitCode != 0) {
+                        logger.warn("ROS2 command exited with code: {}", exitCode);
+                    }
+                }
+
+            } catch (IOException | InterruptedException e) {
                 logger.error("Error sending ROS2 command", e);
+                Thread.currentThread().interrupt();
             }
         });
     }
 
     /**
      * Build ROS2 topic publish command
-     * Uses --rate instead of --once for better reliability
+     * FIXED: Better SSH settings and using --once for immediate response
      */
     private String buildROS2Command(RobotCommand command) {
         // Build TwistStamped message in YAML format with proper quoting
@@ -78,17 +99,20 @@ public class ROS2CommandService {
 
         // If running on different machine, use SSH
         if (!"localhost".equals(raspiIp)) {
-            // Use timeout with --rate for continuous publishing
+            // FIXED: Better SSH connection settings
+            // - ConnectTimeout: Max time to establish SSH connection
+            // - ServerAliveInterval: Keep SSH connection alive
             return String.format(
-                    "ssh -o StrictHostKeyChecking=no %s@%s \"bash -c 'source /opt/ros/jazzy/setup.bash && " +
-                            "timeout 0.2s ros2 topic pub --rate 10 %s geometry_msgs/msg/TwistStamped \\\"%s\\\" || true'\"",
+                    "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -o ServerAliveInterval=1 " +
+                            "%s@%s \"bash -c 'source /opt/ros/jazzy/setup.bash && " +
+                            "ros2 topic pub --once %s geometry_msgs/msg/TwistStamped \\\"%s\\\"'\"",
                     raspiUser, raspiIp, cmdVelTopic, message
             );
         } else {
-            // Local execution with timeout
+            // Local execution
             return String.format(
                     "bash -c \"source /opt/ros/jazzy/setup.bash && " +
-                            "timeout 0.2s ros2 topic pub --rate 10 %s geometry_msgs/msg/TwistStamped '%s' || true\"",
+                            "ros2 topic pub --once %s geometry_msgs/msg/TwistStamped '%s'\"",
                     cmdVelTopic, message
             );
         }
