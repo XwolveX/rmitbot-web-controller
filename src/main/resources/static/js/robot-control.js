@@ -341,12 +341,11 @@ class RobotController {
         const [width, height] = qualitySelect.value.split('x');
 
         // Use MJPEG stream from web_video_server on Raspberry Pi
-        // IMPORTANT: web_video_server runs on port 8080, same as Spring Boot
-        // So we need to use Raspberry Pi's IP directly
+        // web_video_server runs on port 8081 (to avoid conflict with Spring Boot on 8080)
         const raspberryPiIp = '192.168.0.3';
-        const videoServerPort = '8080';
+        const videoServerPort = '8081';
 
-        // Format: http://ROBOT_IP:8080/stream?topic=/camera/image_raw&width=640&height=480
+        // Format: http://ROBOT_IP:8081/stream?topic=/camera/image_raw
         const streamUrl = `http://${raspberryPiIp}:${videoServerPort}/stream?topic=/camera/image_raw&width=${width}&height=${height}`;
 
         cameraStream.src = streamUrl;
