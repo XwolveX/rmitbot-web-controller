@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lidar Viewer - RMIT Robot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        .status {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .led {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        .led.connected {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        #lidarCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 5px;
+        }
+
+        .controls {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        .control-section {
+            margin-bottom: 20px;
+        }
+
+        .control-section h3 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .control-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .info-box {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .info-box div {
+            margin-bottom: 5px;
+        }
+
+        .value {
+            float: right;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+
+        @media (max-width: 768px) {
+            main {
+                flex-direction: column;
+            }
+
+            .controls {
+                width: 100%;
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📡 Lidar Viewer - RMIT Robot</h1>
+            <div class="status">
+                <div class="status-indicator">
+                    <div class="led" id="websocket-led"></div>
+                    <span id="websocket-status">Disconnected</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="led" id="lidar-led"></div>
+                    <span id="lidar-status">No Data</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="canvas-container">
+                <canvas id="lidarCanvas"></canvas>
+            </div>
+
+            <div class="controls">
+                <div class="control-section">
+                    <h3>🎮 Controls</h3>
+                    <button id="toggleBtn">Start Visualization</button>
+                    <button id="clearBtn" style="margin-top: 10px;">Clear Canvas</button>
+                </div>
+
+                <div class="control-section">
+                    <h3>⚙️ Settings</h3>
+                    
+                    <div class="control-group">
+                        <label>Point Size: <span id="pointSizeValue">2</span>px</label>
+                        <input type="range" id="pointSize" min="1" max="5" value="2">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Scale: <span id="scaleValue">30</span> px/m</label>
+                        <input type="range" id="scale" min="10" max="100" value="30">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Max Range: <span id="maxRangeValue">12</span>m</label>
+                        <input type="range" id="maxRange" min="5" max="20" value="12">
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>👁️ Display</h3>
+                    
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="showGrid" checked>
+                            Show Grid
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="showRobot" checked>
+                            Show Robot
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="showAngles" checked>
+                            Show Angles
+                        </label>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>📊 Statistics</h3>
+                    <div class="info-box" id="stats">
+                        <div>FPS: <span class="value" id="fps">0</span></div>
+                        <div>Points: <span class="value" id="points">0</span></div>
+                        <div>Last Update: <span class="value" id="lastUpdate">N/A</span></div>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <button id="backBtn" class="danger">← Back to Main</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="lidar-canvas.js"></script>
+    <script>
+        // Configuration
+        const WS_URL = 'ws://localhost:8080/ws/robot';
+        const API_URL = 'http://localhost:8080/api/lidar';
+
+        // Global state
+        let ws = null;
+        let lidarCanvas = null;
+        let isRunning = false;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 10;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing Lidar Viewer...');
+            
+            // Create canvas
+            lidarCanvas = new LidarCanvas('lidarCanvas', {
+                pointSize: 2,
+                scale: 30,
+                maxRange: 12,
+                showGrid: true,
+                showRobot: true,
+                showAngles: true
+            });
+
+            // Setup event listeners
+            setupControls();
+            
+            // Connect WebSocket
+            connectWebSocket();
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                lidarCanvas.resize();
+            });
+        });
+
+        /**
+         * Connect to WebSocket
+         */
+        function connectWebSocket() {
+            console.log('Connecting to WebSocket:', WS_URL);
+            updateStatus('websocket', false, 'Connecting...');
+
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                updateStatus('websocket', true, 'Connected');
+                reconnectAttempts = 0;
+
+                // Request laser scan subscription
+                console.log('Requesting laser scan subscription...');
+                ws.send(JSON.stringify({
+                    type: 'subscribe_laser_scan'
+                }));
+                
+                // Auto-start visualization
+                setTimeout(() => {
+                    if (!isRunning) {
+                        lidarCanvas.start();
+                        document.getElementById('toggleBtn').textContent = 'Stop Visualization';
+                        isRunning = true;
+                        console.log('Auto-started visualization');
+                    }
+                }, 500);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Received message type:', data.type);
+                    
+                    if (data.type === 'laser_scan') {
+                        handleLaserScan(data.data);
+                    } else if (data.type === 'laser_scan_subscribed') {
+                        console.log('✅ Subscribed to laser scan!');
+                    } else {
+                        console.log('Other message:', data.type);
+                    }
+                } catch (e) {
+                    console.error('Error parsing WebSocket message:', e);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                updateStatus('websocket', false, 'Disconnected');
+                updateStatus('lidar', false, 'No Data');
+
+                // Try to reconnect
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++;
+                    console.log(`Reconnecting... (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+                    setTimeout(connectWebSocket, 3000);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        /**
+         * Handle laser scan data
+         */
+        function handleLaserScan(scanData) {
+            console.log('📡 Laser scan received! Points:', scanData.ranges ? scanData.ranges.length : 0);
+            updateStatus('lidar', true, 'Receiving Data');
+            lidarCanvas.updateScan(scanData);
+        }
+
+        /**
+         * Update status indicators
+         */
+        function updateStatus(type, connected, text) {
+            const led = document.getElementById(`${type}-led`);
+            const status = document.getElementById(`${type}-status`);
+            
+            if (connected) {
+                led.classList.add('connected');
+            } else {
+                led.classList.remove('connected');
+            }
+            
+            status.textContent = text;
+        }
+
+        /**
+         * Setup control event listeners
+         */
+        function setupControls() {
+            // Toggle button
+            document.getElementById('toggleBtn').addEventListener('click', () => {
+                if (isRunning) {
+                    lidarCanvas.stop();
+                    document.getElementById('toggleBtn').textContent = 'Start Visualization';
+                    isRunning = false;
+                } else {
+                    lidarCanvas.start();
+                    document.getElementById('toggleBtn').textContent = 'Stop Visualization';
+                    isRunning = true;
+                }
+            });
+
+            // Clear button
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                lidarCanvas.clear();
+            });
+
+            // Point size
+            document.getElementById('pointSize').addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                document.getElementById('pointSizeValue').textContent = value;
+                lidarCanvas.updateConfig({ pointSize: value });
+            });
+
+            // Scale
+            document.getElementById('scale').addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                document.getElementById('scaleValue').textContent = value;
+                lidarCanvas.updateConfig({ scale: value });
+            });
+
+            // Max range
+            document.getElementById('maxRange').addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                document.getElementById('maxRangeValue').textContent = value;
+                lidarCanvas.updateConfig({ maxRange: value });
+            });
+
+            // Display options
+            document.getElementById('showGrid').addEventListener('change', (e) => {
+                lidarCanvas.updateConfig({ showGrid: e.target.checked });
+            });
+
+            document.getElementById('showRobot').addEventListener('change', (e) => {
+                lidarCanvas.updateConfig({ showRobot: e.target.checked });
+            });
+
+            document.getElementById('showAngles').addEventListener('change', (e) => {
+                lidarCanvas.updateConfig({ showAngles: e.target.checked });
+            });
+
+            // Back button
+            document.getElementById('backBtn').addEventListener('click', () => {
+                window.location.href = '/';
+            });
+        }
+    </script>
+</body>
+</html>

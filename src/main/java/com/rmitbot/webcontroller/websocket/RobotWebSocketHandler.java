@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.rmitbot.webcontroller.model.RobotCommand;
 import com.rmitbot.webcontroller.service.ROSBridgeService;
+import com.rmitbot.webcontroller.service.LaserScanService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -17,10 +18,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * WebSocket handler for robot control
- * UPDATED: Now uses ROSBridgeService instead of SSH-based ROS2CommandService
- * 
- * Performance improvement: 3-4s latency → ~50ms latency
+ * WebSocket handler for robot control and laser scan streaming
+ * UPDATED: Added laser scan support
  */
 @Component
 public class RobotWebSocketHandler extends TextWebSocketHandler {
@@ -29,11 +28,13 @@ public class RobotWebSocketHandler extends TextWebSocketHandler {
     private final Gson gson = new Gson();
 
     private final ROSBridgeService rosBridgeService;
+    private final LaserScanService laserScanService;
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private double currentSpeedMultiplier = 1.0;
 
-    public RobotWebSocketHandler(ROSBridgeService rosBridgeService) {
+    public RobotWebSocketHandler(ROSBridgeService rosBridgeService, LaserScanService laserScanService) {
         this.rosBridgeService = rosBridgeService;
+        this.laserScanService = laserScanService;
     }
 
     @Override
@@ -74,6 +75,12 @@ public class RobotWebSocketHandler extends TextWebSocketHandler {
                     break;
                 case "status":
                     handleStatusMessage(session);
+                    break;
+                case "subscribe_laser_scan":
+                    handleLaserScanSubscription(session);
+                    break;
+                case "unsubscribe_laser_scan":
+                    handleLaserScanUnsubscription(session);
                     break;
                 default:
                     logger.warn("Unknown message type: {}", type);
@@ -169,6 +176,34 @@ public class RobotWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
+     * Handle laser scan subscription
+     */
+    private void handleLaserScanSubscription(WebSocketSession session) throws IOException {
+        laserScanService.registerWebSocketSession(session.getId(), session);
+        
+        JsonObject response = new JsonObject();
+        response.addProperty("type", "laser_scan_subscribed");
+        response.addProperty("message", "Subscribed to laser scan updates");
+        session.sendMessage(new TextMessage(gson.toJson(response)));
+        
+        logger.info("Session {} subscribed to laser scan", session.getId());
+    }
+
+    /**
+     * Handle laser scan unsubscription
+     */
+    private void handleLaserScanUnsubscription(WebSocketSession session) throws IOException {
+        laserScanService.unregisterWebSocketSession(session.getId());
+        
+        JsonObject response = new JsonObject();
+        response.addProperty("type", "laser_scan_unsubscribed");
+        response.addProperty("message", "Unsubscribed from laser scan updates");
+        session.sendMessage(new TextMessage(gson.toJson(response)));
+        
+        logger.info("Session {} unsubscribed from laser scan", session.getId());
+    }
+
+    /**
      * Send error message
      */
     private void sendError(WebSocketSession session, String errorMessage) {
@@ -200,6 +235,9 @@ public class RobotWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+        // Unregister from laser scan
+        laserScanService.unregisterWebSocketSession(session.getId());
+        
         sessions.remove(session.getId());
         logger.info("WebSocket connection closed: {} - Status: {}", session.getId(), status);
     }
@@ -207,6 +245,7 @@ public class RobotWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         logger.error("WebSocket transport error for session: {}", session.getId(), exception);
+        laserScanService.unregisterWebSocketSession(session.getId());
         sessions.remove(session.getId());
     }
 }
