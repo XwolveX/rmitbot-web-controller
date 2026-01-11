@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Vision - RMIT Robot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        nav {
+            background: #f9fafb;
+            padding: 15px 30px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        nav a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: bold;
+        }
+
+        nav a:hover {
+            color: #764ba2;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        section {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-size: 1.3em;
+            color: #764ba2;
+            font-weight: bold;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #10b981;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            color: #4b5563;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #d1d5db;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .control-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1em;
+            background: white;
+            cursor: pointer;
+        }
+
+        .value-display {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .status-item {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .status-item label {
+            display: block;
+            color: #6b7280;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .status-item span {
+            display: block;
+            color: #667eea;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #1f2937;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .video-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+            min-height: 300px;
+            object-fit: contain;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .tags-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .tag-item {
+            background: #f3f4f6;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tag-id {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .tag-info {
+            font-size: 0.85em;
+            color: #6b7280;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.active {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        .status-indicator.inactive {
+            background: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🤖 AI Vision System</h1>
+        <p>Person Detection & AprilTag Tracking</p>
+    </header>
+
+    <nav>
+        <a href="/">← Back to Control</a>
+        <a href="/lidar-viewer.html">Lidar Viewer</a>
+    </nav>
+
+    <main>
+        <!-- Person Detection Section -->
+        <section>
+            <h2>👤 Person Detection</h2>
+
+            <div class="alert alert-warning">
+                ⚠️ Robot will automatically stop when a person is detected within the configured distance!
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-header">
+                    <span class="feature-title">Auto-Stop Protection</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="person-detection-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label>Detection Distance: <span id="distance-value">1.0</span> meters</label>
+                    <input type="range" id="detection-distance" min="0.5" max="3.0" step="0.1" value="1.0">
+                </div>
+
+                <div class="status-grid">
+                    <div class="status-item">
+                        <label>Status:</label>
+                        <span id="person-status">
+                            <span class="status-indicator inactive"></span>
+                            Disabled
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <label>Persons Detected:</label>
+                        <span id="persons-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <label>Last Detection:</label>
+                        <span id="last-detection">Never</span>
+                    </div>
+                    <div class="status-item">
+                        <label>Service Active:</label>
+                        <span id="person-service-status">
+                            <span class="status-indicator inactive"></span>
+                            Inactive
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Person Detection Video Feed -->
+            <div class="feature-card">
+                <h3>Detection Feed</h3>
+                <div class="video-container">
+                    <img id="person-feed" src="" alt="Person detection feed">
+                    <div class="video-overlay" id="person-overlay">No Feed</div>
+                </div>
+                <button onclick="togglePersonFeed()">Toggle Feed</button>
+            </div>
+        </section>
+
+        <!-- AprilTag Detection Section -->
+        <section>
+            <h2>🏷️ AprilTag Detection</h2>
+
+            <div class="alert alert-info">
+                📸 Detect and track AprilTags for robot localization and navigation
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-header">
+                    <span class="feature-title">AprilTag Scanner</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="apriltag-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label>Tag Family:</label>
+                    <select id="tag-family">
+                        <option value="tag36h11" selected>tag36h11 (Recommended)</option>
+                        <option value="tag25h9">tag25h9</option>
+                        <option value="tag16h5">tag16h5</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Tag Size (meters):</label>
+                    <input type="number" id="tag-size" value="0.165" step="0.001" min="0.01" max="1.0">
+                </div>
+
+                <button onclick="updateAprilTagConfig()">Apply Configuration</button>
+
+                <div class="status-grid">
+                    <div class="status-item">
+                        <label>Status:</label>
+                        <span id="apriltag-status">
+                            <span class="status-indicator inactive"></span>
+                            Disabled
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <label>Tags Detected:</label>
+                        <span id="tags-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AprilTag Video Feed -->
+            <div class="feature-card">
+                <h3>Detection Feed</h3>
+                <div class="video-container">
+                    <img id="apriltag-feed" src="" alt="AprilTag detection feed">
+                    <div class="video-overlay" id="apriltag-overlay">No Feed</div>
+                </div>
+                <button onclick="toggleAprilTagFeed()">Toggle Feed</button>
+            </div>
+
+            <!-- Detected Tags List -->
+            <div class="feature-card">
+                <h3>Detected Tags</h3>
+                <div class="tags-list" id="tags-list">
+                    <div style="text-align: center; color: #6b7280; padding: 20px;">
+                        No tags detected
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+    const API_BASE = 'http://localhost:8080/api/vision';
+    const RASPI_IP = '192.168.0.3';
+    let personFeedActive = false;
+    let aprilTagFeedActive = false;
+    let updateInterval;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStatus();
+        setupEventListeners();
+        
+        // Auto-refresh status every 2 seconds
+        updateInterval = setInterval(loadStatus, 2000);
+    });
+
+    function setupEventListeners() {
+        // Person detection toggle
+        document.getElementById('person-detection-toggle').addEventListener('change', (e) => {
+            togglePersonDetection(e.target.checked);
+        });
+
+        // Detection distance slider
+        document.getElementById('detection-distance').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('distance-value').textContent = value.toFixed(1);
+        });
+
+        document.getElementById('detection-distance').addEventListener('change', (e) => {
+            updateDetectionDistance(parseFloat(e.target.value));
+        });
+
+        // AprilTag toggle
+        document.getElementById('apriltag-toggle').addEventListener('change', (e) => {
+            toggleAprilTag(e.target.checked);
+        });
+    }
+
+    async function loadStatus() {
+        try {
+            // Load person detection status
+            const personResponse = await fetch(`${API_BASE}/person-detection/status`);
+            const personData = await personResponse.json();
+            updatePersonDetectionUI(personData);
+
+            // Load AprilTag status
+            const apriltagResponse = await fetch(`${API_BASE}/apriltag/status`);
+            const apriltagData = await apriltagResponse.json();
+            updateAprilTagUI(apriltagData);
+
+            // Load detected tags
+            const tagsResponse = await fetch(`${API_BASE}/apriltag/tags`);
+            const tagsData = await tagsResponse.json();
+            updateTagsList(tagsData.tags);
+
+        } catch (error) {
+            console.error('Error loading status:', error);
+        }
+    }
+
+    function updatePersonDetectionUI(data) {
+        const toggle = document.getElementById('person-detection-toggle');
+        toggle.checked = data.enabled;
+
+        const statusSpan = document.getElementById('person-status');
+        const indicator = statusSpan.querySelector('.status-indicator');
+        
+        if (data.enabled) {
+            statusSpan.innerHTML = '<span class="status-indicator active"></span>Enabled';
+        } else {
+            statusSpan.innerHTML = '<span class="status-indicator inactive"></span>Disabled';
+        }
+
+        document.getElementById('persons-count').textContent = data.personsDetected || 0;
+        
+        if (data.lastDetectionTime && data.lastDetectionTime > 0) {
+            const time = new Date(data.lastDetectionTime);
+            document.getElementById('last-detection').textContent = time.toLocaleTimeString();
+        }
+
+        // Update distance slider
+        document.getElementById('detection-distance').value = data.detectionDistance;
+        document.getElementById('distance-value').textContent = data.detectionDistance.toFixed(1);
+    }
+
+    function updateAprilTagUI(data) {
+        const toggle = document.getElementById('apriltag-toggle');
+        toggle.checked = data.enabled;
+
+        const statusSpan = document.getElementById('apriltag-status');
+        
+        if (data.enabled) {
+            statusSpan.innerHTML = '<span class="status-indicator active"></span>Enabled';
+        } else {
+            statusSpan.innerHTML = '<span class="status-indicator inactive"></span>Disabled';
+        }
+
+        const numTags = Object.keys(data.detectedTags || {}).length;
+        document.getElementById('tags-count').textContent = numTags;
+
+        // Update config
+        document.getElementById('tag-family').value = data.tagFamily || 'tag36h11';
+        document.getElementById('tag-size').value = data.tagSize || 0.165;
+    }
+
+    function updateTagsList(tags) {
+        const tagsList = document.getElementById('tags-list');
+        
+        if (!tags || Object.keys(tags).length === 0) {
+            tagsList.innerHTML = `
+                <div style="text-align: center; color: #6b7280; padding: 20px;">
+                    No tags detected
+                </div>
+            `;
+            return;
+        }
+
+        tagsList.innerHTML = '';
+        for (const [tagId, tagData] of Object.entries(tags)) {
+            const tagElement = document.createElement('div');
+            tagElement.className = 'tag-item';
+            tagElement.innerHTML = `
+                <div>
+                    <div class="tag-id">Tag ID: ${tagData.id}</div>
+                    <div class="tag-info">
+                        Hamming: ${tagData.hamming} | 
+                        Margin: ${tagData.decision_margin.toFixed(2)}
+                    </div>
+                </div>
+            `;
+            tagsList.appendChild(tagElement);
+        }
+    }
+
+    async function togglePersonDetection(enabled) {
+        try {
+            const response = await fetch(`${API_BASE}/person-detection/enable`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enable: enabled })
+            });
+            
+            const data = await response.json();
+            console.log('Person detection:', data.message);
+            loadStatus();
+            
+        } catch (error) {
+            console.error('Error toggling person detection:', error);
+        }
+    }
+
+    async function updateDetectionDistance(distance) {
+        try {
+            const response = await fetch(`${API_BASE}/person-detection/distance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ distance: distance })
+            });
+            
+            const data = await response.json();
+            console.log('Distance updated:', data.message);
+            
+        } catch (error) {
+            console.error('Error updating distance:', error);
+        }
+    }
+
+    async function toggleAprilTag(enabled) {
+        try {
+            const response = await fetch(`${API_BASE}/apriltag/enable`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enable: enabled })
+            });
+            
+            const data = await response.json();
+            console.log('AprilTag detection:', data.message);
+            loadStatus();
+            
+        } catch (error) {
+            console.error('Error toggling AprilTag detection:', error);
+        }
+    }
+
+    async function updateAprilTagConfig() {
+        const family = document.getElementById('tag-family').value;
+        const size = parseFloat(document.getElementById('tag-size').value);
+
+        try {
+            const response = await fetch(`${API_BASE}/apriltag/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    tagFamily: family,
+                    tagSize: size
+                })
+            });
+            
+            const data = await response.json();
+            console.log('Config updated:', data.message);
+            alert('AprilTag configuration updated successfully!');
+            
+        } catch (error) {
+            console.error('Error updating config:', error);
+            alert('Failed to update configuration');
+        }
+    }
+
+    function togglePersonFeed() {
+        const img = document.getElementById('person-feed');
+        const overlay = document.getElementById('person-overlay');
+        
+        if (!personFeedActive) {
+            img.src = `http://${RASPI_IP}:8081/stream?topic=/person_detection/image`;
+            overlay.textContent = 'Live';
+            overlay.style.background = 'rgba(16, 185, 129, 0.8)';
+            personFeedActive = true;
+        } else {
+            img.src = '';
+            overlay.textContent = 'No Feed';
+            overlay.style.background = 'rgba(0, 0, 0, 0.7)';
+            personFeedActive = false;
+        }
+    }
+
+    function toggleAprilTagFeed() {
+        const img = document.getElementById('apriltag-feed');
+        const overlay = document.getElementById('apriltag-overlay');
+        
+        if (!aprilTagFeedActive) {
+            img.src = `http://${RASPI_IP}:8081/stream?topic=/apriltag/image`;
+            overlay.textContent = 'Live';
+            overlay.style.background = 'rgba(16, 185, 129, 0.8)';
+            aprilTagFeedActive = true;
+        } else {
+            img.src = '';
+            overlay.textContent = 'No Feed';
+            overlay.style.background = 'rgba(0, 0, 0, 0.7)';
+            aprilTagFeedActive = false;
+        }
+    }
+</script>
+</body>
+</html>

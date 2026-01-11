@@ -151,6 +151,49 @@ h3 {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
+/* Navigation Controls */
+.navigation-controls {
+    margin-bottom: 25px;
+    width: 100%;
+}
+
+.navigation-controls .control-btn.navigation-btn {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 90px !important;
+    font-size: 1.1em;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    padding: 20px 30px !important;
+    white-space: nowrap;
+    overflow: visible;
+}
+
+.navigation-controls .control-btn.navigation-btn .nav-icon {
+    font-size: 2em;
+    flex-shrink: 0;
+}
+
+.navigation-controls .control-btn.navigation-btn .nav-text {
+    font-weight: bold;
+    letter-spacing: 1px;
+    font-size: 1.1em;
+}
+
+.navigation-controls .control-btn.navigation-btn:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(59, 130, 246, 0.4);
+}
+
+.navigation-controls .control-btn.navigation-btn:active {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+}
+
 /* Speed Controls */
 .speed-controls {
     text-align: center;

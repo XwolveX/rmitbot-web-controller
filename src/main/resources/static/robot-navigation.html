@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Navigation - RMIT Robot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status.connected {
+            background: #10b981;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+        }
+
+        .led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Map Section */
+        .map-section {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .map-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .map-container {
+            position: relative;
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #mapCanvas {
+            width: 100%;
+            height: 700px;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            max-width: 250px;
+        }
+
+        .map-overlay h4 {
+            margin-bottom: 10px;
+            color: #10b981;
+        }
+
+        .map-overlay div {
+            margin-bottom: 5px;
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.85em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-section {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #4b5563;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .button-group {
+            display: grid;
+            gap: 10px;
+        }
+
+        /* Goal Info */
+        .goal-info {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #667eea;
+        }
+
+        .goal-info h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: #f9fafb;
+            border-radius: 5px;
+        }
+
+        .info-label {
+            color: #6b7280;
+            font-weight: bold;
+        }
+
+        .info-value {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        /* Robot Status */
+        .robot-status {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #10b981;
+        }
+
+        .robot-status h4 {
+            color: #10b981;
+            margin-bottom: 10px;
+        }
+
+        /* Quick Goals */
+        .quick-goals {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .quick-goal-btn {
+            padding: 12px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .quick-goal-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Log */
+        .log-section {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        .log-entry {
+            color: #10b981;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-entry.error {
+            color: #ef4444;
+        }
+
+        .log-entry.info {
+            color: #3b82f6;
+        }
+
+        /* Scrollbar */
+        .log-section::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-section::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+
+        .log-section::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(-5px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                🗺️ Robot Navigation System
+            </h1>
+            <div class="status-bar">
+                <a href="/" class="back-link">← Back to Controller</a>
+                <div class="status connected">
+                    <div class="led"></div>
+                    <span>System Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Map Section -->
+            <div class="map-section">
+                <h2>Navigation Map</h2>
+                <div class="map-container">
+                    <canvas id="mapCanvas"></canvas>
+                    
+                    <div class="map-overlay">
+                        <h4>Instructions</h4>
+                        <div>• Click on map to set goal</div>
+                        <div>• Red circle = Robot position</div>
+                        <div>• Green circle = Goal position</div>
+                        <div>• Blue line = Path</div>
+                    </div>
+
+                    <div class="map-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ef4444;"></div>
+                            <span>Robot</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #10b981;"></div>
+                            <span>Goal</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #3b82f6;"></div>
+                            <span>Path</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #333;"></div>
+                            <span>Obstacles</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <!-- Goal Input -->
+                <div class="control-section">
+                    <h3>🎯 Set Goal Position</h3>
+                    
+                    <div class="form-group">
+                        <label>X Position (meters)</label>
+                        <input type="number" id="goalX" step="0.1" value="0.0" placeholder="Enter X coordinate">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Y Position (meters)</label>
+                        <input type="number" id="goalY" step="0.1" value="0.0" placeholder="Enter Y coordinate">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Orientation (degrees)</label>
+                        <input type="number" id="goalTheta" step="15" value="0" min="-180" max="180" placeholder="0-360">
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="sendGoalBtn">
+                            🚀 Send Goal
+                        </button>
+                        <button class="btn btn-danger" id="cancelGoalBtn">
+                            ⛔ Cancel Navigation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Current Goal Info -->
+                <div class="control-section">
+                    <h3>📍 Current Goal</h3>
+                    <div class="goal-info">
+                        <h4>Target Position</h4>
+                        <div class="info-item">
+                            <span class="info-label">X:</span>
+                            <span class="info-value" id="currentGoalX">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Y:</span>
+                            <span class="info-value" id="currentGoalY">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Theta:</span>
+                            <span class="info-value" id="currentGoalTheta">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value" id="goalStatus">No goal set</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Goals -->
+                <div class="control-section">
+                    <h3>⚡ Quick Goals</h3>
+                    <div class="quick-goals">
+                        <button class="quick-goal-btn" data-x="2" data-y="0" data-theta="0">
+                            Forward 2m
+                        </button>
+                        <button class="quick-goal-btn" data-x="-2" data-y="0" data-theta="180">
+                            Back 2m
+                        </button>
+                        <button class="quick-goal-btn" data-x="0" data-y="2" data-theta="90">
+                            Left 2m
+                        </button>
+                        <button class="quick-goal-btn" data-x="0" data-y="-2" data-theta="-90">
+                            Right 2m
+                        </button>
+                        <button class="quick-goal-btn" data-x="0" data-y="0" data-theta="0">
+                            Home (0,0)
+                        </button>
+                        <button class="quick-goal-btn" data-x="3" data-y="3" data-theta="45">
+                            Diagonal
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Robot Status -->
+                <div class="control-section">
+                    <h3>🤖 Robot Status</h3>
+                    <div class="robot-status">
+                        <h4>Current Position</h4>
+                        <div class="info-item">
+                            <span class="info-label">X:</span>
+                            <span class="info-value" id="robotX">0.00</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Y:</span>
+                            <span class="info-value" id="robotY">0.00</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Theta:</span>
+                            <span class="info-value" id="robotTheta">0.0°</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Log -->
+                <div class="control-section">
+                    <h3>📋 Navigation Log</h3>
+                    <div class="log-section" id="navLog">
+                        <div class="log-entry">System initialized</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:8080/api';
+        const CANVAS_WIDTH = 800;
+        const CANVAS_HEIGHT = 700;
+        const SCALE = 50; // pixels per meter
+        const GRID_SIZE = 1; // 1 meter grid
+
+        // State
+        let robotPosition = { x: 0, y: 0, theta: 0 };
+        let goalPosition = null;
+        let clickedGoal = null;
+
+        // Canvas setup
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        // Center of canvas
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+
+        /**
+         * Initialize the application
+         */
+        function init() {
+            log('Navigation system initialized', 'info');
+            setupEventListeners();
+            startRendering();
+        }
+
+        /**
+         * Setup event listeners
+         */
+        function setupEventListeners() {
+            // Canvas click for goal setting
+            canvas.addEventListener('click', handleCanvasClick);
+
+            // Send goal button
+            document.getElementById('sendGoalBtn').addEventListener('click', sendGoal);
+
+            // Cancel goal button
+            document.getElementById('cancelGoalBtn').addEventListener('click', cancelGoal);
+
+            // Quick goal buttons
+            document.querySelectorAll('.quick-goal-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const x = parseFloat(btn.dataset.x);
+                    const y = parseFloat(btn.dataset.y);
+                    const theta = parseFloat(btn.dataset.theta);
+                    setGoal(x, y, theta);
+                });
+            });
+
+            // Input change listeners
+            ['goalX', 'goalY', 'goalTheta'].forEach(id => {
+                document.getElementById(id).addEventListener('change', updateGoalPreview);
+            });
+        }
+
+        /**
+         * Handle canvas click to set goal
+         */
+        function handleCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            // Convert canvas coordinates to world coordinates
+            const worldX = (clickX - centerX) / SCALE;
+            const worldY = -(clickY - centerY) / SCALE; // Invert Y axis
+
+            // Update goal inputs
+            document.getElementById('goalX').value = worldX.toFixed(2);
+            document.getElementById('goalY').value = worldY.toFixed(2);
+
+            // Set preview goal
+            clickedGoal = { x: worldX, y: worldY };
+            
+            log(`Goal selected: (${worldX.toFixed(2)}, ${worldY.toFixed(2)})`, 'info');
+        }
+
+        /**
+         * Update goal preview from inputs
+         */
+        function updateGoalPreview() {
+            const x = parseFloat(document.getElementById('goalX').value) || 0;
+            const y = parseFloat(document.getElementById('goalY').value) || 0;
+            clickedGoal = { x, y };
+        }
+
+        /**
+         * Send goal to robot
+         */
+        async function sendGoal() {
+            const x = parseFloat(document.getElementById('goalX').value) || 0;
+            const y = parseFloat(document.getElementById('goalY').value) || 0;
+            const thetaDeg = parseFloat(document.getElementById('goalTheta').value) || 0;
+            const thetaRad = thetaDeg * Math.PI / 180;
+
+            try {
+                log(`Sending goal: x=${x.toFixed(2)}, y=${y.toFixed(2)}, theta=${thetaDeg}°`, 'info');
+
+                const response = await fetch(`${API_BASE_URL}/map/goal`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        x: x,
+                        y: y,
+                        theta: thetaRad
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    goalPosition = { x, y, theta: thetaDeg };
+                    clickedGoal = null;
+                    updateCurrentGoalDisplay();
+                    log('✅ Goal sent successfully!', 'info');
+                    document.getElementById('goalStatus').textContent = 'Navigating...';
+                } else {
+                    log('❌ Failed to send goal: ' + data.message, 'error');
+                }
+
+            } catch (error) {
+                log('❌ Error sending goal: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+
+        /**
+         * Cancel current goal
+         */
+        function cancelGoal() {
+            goalPosition = null;
+            clickedGoal = null;
+            document.getElementById('goalStatus').textContent = 'Cancelled';
+            log('Goal cancelled', 'info');
+            
+            // TODO: Send cancel command to robot
+            // This would require an API endpoint for canceling navigation
+        }
+
+        /**
+         * Set goal from quick buttons
+         */
+        function setGoal(x, y, theta) {
+            document.getElementById('goalX').value = x;
+            document.getElementById('goalY').value = y;
+            document.getElementById('goalTheta').value = theta;
+            clickedGoal = { x, y };
+            log(`Quick goal set: (${x}, ${y})`, 'info');
+        }
+
+        /**
+         * Update current goal display
+         */
+        function updateCurrentGoalDisplay() {
+            if (goalPosition) {
+                document.getElementById('currentGoalX').textContent = goalPosition.x.toFixed(2) + ' m';
+                document.getElementById('currentGoalY').textContent = goalPosition.y.toFixed(2) + ' m';
+                document.getElementById('currentGoalTheta').textContent = goalPosition.theta.toFixed(1) + '°';
+            }
+        }
+
+        /**
+         * Render the map
+         */
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Draw grid
+            drawGrid();
+
+            // Draw coordinate axes
+            drawAxes();
+
+            // Draw path (if goal exists)
+            if (goalPosition) {
+                drawPath();
+            }
+
+            // Draw clicked goal preview
+            if (clickedGoal) {
+                drawGoalPreview(clickedGoal.x, clickedGoal.y);
+            }
+
+            // Draw goal
+            if (goalPosition) {
+                drawGoal(goalPosition.x, goalPosition.y);
+            }
+
+            // Draw robot
+            drawRobot(robotPosition.x, robotPosition.y, robotPosition.theta);
+        }
+
+        /**
+         * Draw grid
+         */
+        function drawGrid() {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+
+            // Vertical lines
+            for (let x = -10; x <= 10; x += GRID_SIZE) {
+                const canvasX = centerX + x * SCALE;
+                ctx.beginPath();
+                ctx.moveTo(canvasX, 0);
+                ctx.lineTo(canvasX, CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+
+            // Horizontal lines
+            for (let y = -10; y <= 10; y += GRID_SIZE) {
+                const canvasY = centerY - y * SCALE;
+                ctx.beginPath();
+                ctx.moveTo(0, canvasY);
+                ctx.lineTo(CANVAS_WIDTH, canvasY);
+                ctx.stroke();
+            }
+        }
+
+        /**
+         * Draw coordinate axes
+         */
+        function drawAxes() {
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+
+            // X axis (red)
+            ctx.strokeStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(CANVAS_WIDTH, centerY);
+            ctx.stroke();
+
+            // Y axis (green)
+            ctx.strokeStyle = '#10b981';
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, CANVAS_HEIGHT);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#999';
+            ctx.font = '12px monospace';
+            ctx.fillText('X', CANVAS_WIDTH - 20, centerY - 10);
+            ctx.fillText('Y', centerX + 10, 20);
+            ctx.fillText('0', centerX + 10, centerY - 10);
+        }
+
+        /**
+         * Draw path from robot to goal
+         */
+        function drawPath() {
+            const robotCanvasX = centerX + robotPosition.x * SCALE;
+            const robotCanvasY = centerY - robotPosition.y * SCALE;
+            const goalCanvasX = centerX + goalPosition.x * SCALE;
+            const goalCanvasY = centerY - goalPosition.y * SCALE;
+
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+            ctx.beginPath();
+            ctx.moveTo(robotCanvasX, robotCanvasY);
+            ctx.lineTo(goalCanvasX, goalCanvasY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        /**
+         * Draw robot
+         */
+        function drawRobot(x, y, theta) {
+            const canvasX = centerX + x * SCALE;
+            const canvasY = centerY - y * SCALE;
+
+            // Robot body (circle)
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(canvasX, canvasY, 15, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Direction indicator
+            const dirX = canvasX + Math.cos(theta * Math.PI / 180) * 25;
+            const dirY = canvasY - Math.sin(theta * Math.PI / 180) * 25;
+
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(canvasX, canvasY);
+            ctx.lineTo(dirX, dirY);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('ROBOT', canvasX, canvasY + 35);
+        }
+
+        /**
+         * Draw goal position
+         */
+        function drawGoal(x, y) {
+            const canvasX = centerX + x * SCALE;
+            const canvasY = centerY - y * SCALE;
+
+            // Goal marker (circle)
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(canvasX, canvasY, 12, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Outer ring
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(canvasX, canvasY, 20, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('GOAL', canvasX, canvasY + 35);
+        }
+
+        /**
+         * Draw goal preview
+         */
+        function drawGoalPreview(x, y) {
+            const canvasX = centerX + x * SCALE;
+            const canvasY = centerY - y * SCALE;
+
+            // Preview marker (semi-transparent)
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.5)';
+            ctx.beginPath();
+            ctx.arc(canvasX, canvasY, 10, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(canvasX, canvasY, 18, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        /**
+         * Log message
+         */
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('navLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+
+            // Keep only last 50 entries
+            while (logDiv.children.length > 50) {
+                logDiv.removeChild(logDiv.firstChild);
+            }
+        }
+
+        /**
+         * Start rendering loop
+         */
+        function startRendering() {
+            setInterval(() => {
+                render();
+            }, 1000 / 30); // 30 FPS
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
